@@ -20,6 +20,9 @@ class States(Enum):
 
 
 class Waypoint():
+    """
+    Class representing a Waypoint with utility methods.
+    """
 
     def __init__(self, north, east, altitude, heading_degrees=0):
         self.north = north
@@ -57,20 +60,29 @@ class BackyardFlyer(Drone):
         self.register_callback(MsgID.STATE, self.state_callback)
 
     def local_position_callback(self):
+        """
+        Callback for changes in position.
+        """
         if self.flight_state == States.TAKEOFF:
-            if self.is_at_target_height():
+            if self.is_at_target_altitude():
                 self.waypoint_transition()
         elif self.flight_state == States.WAYPOINT:
             if self.is_at_waypoint():
                 self.waypoint_transition()
 
     def velocity_callback(self):
+        """
+        Callback for changes in velocity.
+        """
         if self.flight_state == States.LANDING:
             if ((self.global_position[2] - self.global_home[2] < 0.1) and
             abs(self.local_position[2]) < 0.01):
                 self.disarming_transition()
 
     def state_callback(self):
+        """
+        Callback for armed state.
+        """
         if not self.in_mission:
             return
 
@@ -83,19 +95,25 @@ class BackyardFlyer(Drone):
             if not self.armed:
                 self.manual_transition()
 
-    def is_at_target_height(self):
+    def is_at_target_altitude(self):
+        """
+        Checks whether the droine is at the defined target altitude.
+        """
         # coordinate conversion
         altitude = -1.0 * self.local_position[2]
         return altitude > 0.95 * self.target_position[2]
 
     def is_at_waypoint(self):
+        """
+        Checks whether the drone is at the next_waypoint (if any).
+        """
         if not self.next_waypoint:
             return False
         altitude = -1.0 * self.local_position[2]
         return self.next_waypoint.is_close_to(self.local_position[0],
                                               self.local_position[1],
                                               altitude,
-                                              within=0.20)
+                                              within=0.15)
 
     def calculate_box(self):
         """        
@@ -108,10 +126,7 @@ class BackyardFlyer(Drone):
 
     def arming_transition(self):
         """
-        1. Take control of the drone
-        2. Pass an arming command
-        3. Set the home location to current position
-        4. Transition to the ARMING state
+        Starts arming stage.
         """
         print("arming transition")
         self.take_control()
@@ -123,9 +138,7 @@ class BackyardFlyer(Drone):
 
     def takeoff_transition(self):
         """
-        1. Set target_position altitude to 3.0m
-        2. Command a takeoff to 3.0m
-        3. Transition to the TAKEOFF state
+        Starts takeoff stage.
         """
         print("takeoff transition")
         self.target_position[2] = self.target_altitude
@@ -134,10 +147,11 @@ class BackyardFlyer(Drone):
 
     def waypoint_transition(self):
         """
-        1. Command the next waypoint position
-        2. Transition to WAYPOINT state
+        Start move to the next avilable waypoint. 
+        When no more waypoints are available, it triggers the landing stage transition.
         """
         print("waypoint transition")
+        time.sleep(0.5) # wait for the drone to stabilize, then move again
         if len(self.all_waypoints) > 0:
             self.flight_state = States.WAYPOINT
             self.next_waypoint = self.all_waypoints.pop(0)
@@ -151,16 +165,21 @@ class BackyardFlyer(Drone):
                               self.next_waypoint.altitude,
                               self.next_waypoint.heading)
         else:
-            time.sleep(1) # give a second for the drone to stabilize
             self.landing_transition()
 
 
     def landing_transition(self):
+        """
+        Lands the drone.
+        """
         print("landing transition")
         self.land()
         self.flight_state = States.LANDING
 
     def disarming_transition(self):
+        """
+        Disarms the droine.
+        """
         print("disarm transition")
         self.disarm()
         self.flight_state = States.DISARMING
