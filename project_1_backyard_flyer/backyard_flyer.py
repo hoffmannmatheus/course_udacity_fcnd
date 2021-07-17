@@ -142,13 +142,16 @@ class BackyardFlyer(Drone):
             self.flight_state = States.WAYPOINT
             self.next_waypoint = self.all_waypoints.pop(0)
             
-            time.sleep(1) # give a second for the drone to stabilize
             print(f"next waypoint: {self.next_waypoint}")
+            self.target_position = np.array([self.next_waypoint.north,
+                                             self.next_waypoint.east,
+                                             self.next_waypoint.altitude])
             self.cmd_position(self.next_waypoint.north,
                               self.next_waypoint.east,
                               self.next_waypoint.altitude,
                               self.next_waypoint.heading)
         else:
+            time.sleep(1) # give a second for the drone to stabilize
             self.landing_transition()
 
 
